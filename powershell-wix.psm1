@@ -1,5 +1,21 @@
 #Requires -Version 3.0
 
+Function ConvertTo-WixNeutralString ($Text) {
+  $changes = New-Object System.Collections.Hashtable
+  $changes.'ß' = 'ss'
+  $changes.'Ä' = 'Ae'
+  $changes.'ä' = 'ae'
+  $changes.'Ü' = 'Ue'
+  $changes.'ü' = 'ue'
+  $changes.'Ö' = 'Oe'
+  $changes.'ö' = 'oe'
+  $changes.' ' = '_'
+  $changes.'-' = '_'
+  Foreach ($key in $changes.Keys) {
+    $text = $text.Replace($key, $changes.$key)
+  }
+  $text
+}
 
 Function New-WixUid {
   function New-RandomHexByte {
@@ -116,9 +132,10 @@ Function Get-WixLocalConfig
       Add-Member -InputObject $settings -MemberType NoteProperty `
                  -Name $setting -Value $value -Force
     }
+    $null = (New-Item -ItemType Directory -Force -Path (Split-Path $File))
+    $settings | ConvertTo-JSON | Out-File $File 
+    
   }
-  $null = (New-Item -ItemType Directory -Force -Path (Split-Path $File))
-  $settings | ConvertTo-JSON | Out-File $File 
   Return $settings
 } #end Function Get-WixLocalConfig 
 
@@ -267,25 +284,33 @@ Function Start-WixBuild
     else {
       $versionArray[$Increment - 1] = [string]([int]($versionArray[$Increment - 1]) + 1)
     }
-    $ProductVersion = $versionArray -Join "."
-    Set-WixLocalConfig -ProductVersion $ProductVersion | Out-Null
+    $NewProductVersion = $versionArray -Join "."
+    Set-WixLocalConfig -ProductVersion $NewProductVersion | Out-Null
   }
 
   # MSI IDs
-  $productId = ConvertTo-NeutralString($ProductShortName)
+  $productId = ConvertTo-WixNeutralString($ProductShortName)
   
   # Date and time
   $timeStamp = (Get-Date -format yyyyMMddHHmmss)
   
   # WiX paths
-  $libDir = Join-Path $PSScriptRoot "lib"
-  $wixDir = Join-Path $libdir "wix"
+  #$libDir = Join-Path $PSScriptRoot "lib"
+  If ((((Get-ChildItem -Path 'C:\Program Files (x86)\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName){
+    $wixDir = Split-Path ((((Get-ChildItem -Path 'C:\Program Files (x86)\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName)
+  }
+  Else {
+    Out-Host "Please install WiX Toolset"
+    exit 1
+  }
+  
+  #$wixDir = Join-Path $libdir "wix"
   $heatExe = Join-Path $wixDir "heat.exe"
   $candleExe = Join-Path $wixDir "candle.exe"
   $lightExe = Join-Path $wixDir "light.exe"
   
   # Other paths
-  $thisModuleName = ConvertTo-NeutralString($MyInvocation.MyCommand.ModuleName)
+  $thisModuleName = ConvertTo-WixNeutralString($MyInvocation.MyCommand.ModuleName)
   $tmpDirGlobalRoot = Join-Path $Env:TMP $thisModuleName
   $tmpDirThisRoot = Join-Path $tmpDirGlobalRoot $productId
   $tmpDir = Join-Path $tmpDirThisRoot $timeStamp
@@ -300,7 +325,7 @@ Function Start-WixBuild
   $cabFileName = $productId + ".msi"
   
   # MSI IDs
-  $productId = ConvertTo-NeutralString($ProductShortName)
+  $productId = ConvertTo-WixNeutralString($ProductShortName)
   
   #Platform
   If ($x86) {
@@ -397,14 +422,14 @@ Function Start-WixBuild
   
   # Save XML and create productWxs
   $wixXml.Save($modulesWxs)
-  &$heatExe dir $Path -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId > NUL
+  &$heatExe dir $Path -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId | Out-Null
   
   # Produce wixobj files
-  &$candleexe $modulesWxs -out $modulesWixobj > NUL
-  &$candleexe $productWxs -out $productWixobj > NUL
+  &$candleexe $modulesWxs -out $modulesWixobj | Out-Null
+  &$candleexe $productWxs -out $productWixobj | Out-Null
   
   # Produce the MSI file
-  &$lightexe -sw1076 -spdb -ext WixUIExtension -out $outputMsi $modulesWixobj $productWixobj -b $Path -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 > NUL
+  &$lightexe -sw1076 -spdb -ext WixUIExtension -out $outputMsi $modulesWixobj $productWixobj -b $Path -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 | Out-Null
   
   # Remove tmp dir
   Remove-Item $tmpDir -Recurse
