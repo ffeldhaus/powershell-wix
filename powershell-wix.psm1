@@ -296,7 +296,7 @@ Function Start-WixBuild
   
   # WiX paths
   #$libDir = Join-Path $PSScriptRoot "lib"
-  If ((((Get-ChildItem -Path 'C:\Program Files (x86)\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName){
+  If ((((Get-ChildItem -Path 'C:\Program Files*\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName){
     $wixDir = Split-Path ((((Get-ChildItem -Path 'C:\Program Files (x86)\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName)
   }
   Else {
