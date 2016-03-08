@@ -41,22 +41,37 @@ Function Get-WixLocalConfig
     Returns the local WiX configuration.
    .Description
     This function returns an object representing the local WiX
-    configuration.  Configuration is returned from (in order of preference):
-    
-     - a JSON formatted config file (default location: '.WiX\settings.json')
-     - from sensible default values
-     - from user input
+    configuration.  Configuration is returned from a JSON formatted config file
+    (default location: '.WiX\settings.json').  Sensible default values are
+    returned if they are not contained in this file.  Upgrade codes are
+    generated and stored if they do not exist.
      
     Individual configuration values can also be selected.  If no configuration
-    values are selected, all values contained in the file and defaults will be
-    returned, but the user will not be prompted for missing values.
+    values are selected, all values are returned.
    .Example
     Get-WixLocalConfig
     Gets local WiX configuration from '.WiX\settings.json'.
+   .Example
+    (Get-WixLocalConfig -ProductName).ProductName
+    Gets 'ProductName' as a stringfrom '.WiX\settings.json'.
    .Parameter File
     An alternative configuration file.
-   .Parameter UpgradeCode
-    Include "UpgradeCode" in returned object.
+   .Parameter ProductShortName
+    Include "ProductShortName" in returned object.
+   .Parameter ProductName
+    Include "ProductName" in returned object.
+   .Parameter ProductVersion
+    Include "ProductVersion" in returned object.
+   .Parameter Manufacturer
+    Include "Manufacturer" in returned object.
+   .Parameter HelpLink
+    Include "HelpLink" in returned object.
+   .Parameter AboutLink
+    Include "AboutLink" in returned object.
+   .Parameter UpgradeCodeX86
+    Include "UpgradeCodeX86" in returned object.
+   .Parameter UpgradeCodeX64
+    Include "UpgradeCodeX64" in returned object.
    .Inputs
     None
    .Outputs
@@ -80,21 +95,44 @@ Function Get-WixLocalConfig
     [Parameter(Mandatory=$false)]  [switch] $Manufacturer,
     [Parameter(Mandatory=$false)]  [switch] $HelpLink,
     [Parameter(Mandatory=$false)]  [switch] $AboutLink,
-    [Parameter(Mandatory=$false)]  [switch] $UpgradeCode
+    [Parameter(Mandatory=$false)]  [switch] $UpgradeCodeX86,
+    [Parameter(Mandatory=$false)]  [switch] $UpgradeCodeX64
   ) #end Param
-  $defaults = @{'ProductShortName' = (Split-Path (Get-Location) -Leaf);
-                'ProductName' = (Split-Path (Get-Location) -Leaf);
+  "File: " + $File
+  $defaults = @{'ProductShortName' = (Split-Path -Leaf (Split-Path (Split-Path $File)));
+                'ProductName' = (Split-Path -Leaf (Split-Path (Split-Path $File)));
                 'ProductVersion' = '1.0.0';
-                'Manufacturer' = (Split-Path (Get-Location) -Leaf);
+                'Manufacturer' = (Split-Path -Leaf (Split-Path (Split-Path $File)));
                 'HelpLink' = ("http://www.google.com/q=" + 
-                    (Split-Path (Get-Location) -Leaf));
+                    (Split-Path -Leaf (Split-Path (Split-Path $File))));
                 'AboutLink' = ("http://www.google.com/q=" + 
-                    (Split-Path (Get-Location) -Leaf));
-                'UpgradeCode' = (New-WixUid)}
+                    (Split-Path -Leaf (Split-Path (Split-Path $File))));
+                'UpgradeCodeX86' = (New-WixUid);
+                'UpgradeCodeX64' = (New-WixUid)}
   $settings = New-Object -TypeName PSCustomObject
   $readSettings = New-Object -TypeName PSCustomObject
   $params = $PSBoundParameters.GetEnumerator()|
             Where-Object {($_.Key -ne 'File')}
+  
+  # Make sure we have persistent upgrade codes
+  if (Test-Path $File){
+    try {
+      $readSettings = Get-Content -Raw $File | ConvertFrom-Json
+    } catch {}
+  }
+  If (!$readSettings.UpgradeCodeX86 -or !$readSettings.UpgradeCodeX64){
+    If (!$readSettings.UpgradeCodeX86){
+      Add-Member -InputObject $readSettings -MemberType NoteProperty `
+                     -Name UpgradeCodeX86 -Value (New-WixUid)
+    }
+    If (!$readSettings.UpgradeCode64){
+      Add-Member -InputObject $readSettings -MemberType NoteProperty `
+                     -Name UpgradeCodeX64 -Value (New-WixUid)
+    }
+    #$readsettings
+    $null = (New-Item -ItemType Directory -Force -Path (Split-Path $File))
+    $readSettings | ConvertTo-JSON | Out-File $File
+  }
   
   if (Test-Path $File){
     try {
@@ -102,7 +140,7 @@ Function Get-WixLocalConfig
     } catch {}
   }
   foreach ($parameter in $params){
-    $setting = $parameter.Key
+    $setting = $parameter.Key.ToLower()
     $value = $parameter.Value
     if ($value){
       if ($readSettings.$setting) { 
@@ -132,9 +170,6 @@ Function Get-WixLocalConfig
       Add-Member -InputObject $settings -MemberType NoteProperty `
                  -Name $setting -Value $value -Force
     }
-    $null = (New-Item -ItemType Directory -Force -Path (Split-Path $File))
-    $settings | ConvertTo-JSON | Out-File $File 
-    
   }
   Return $settings
 } #end Function Get-WixLocalConfig 
@@ -151,14 +186,28 @@ Function Set-WixLocalConfig
     formatted file (default location: '.WiX\settings.json').  It returns the new
     configuration.
    .Example
-    Set-WixLocalConfig -UpgradeCode "YOURGUID-GOES-HERE-0123-012345678901"
-    Sets the UpgradeCode setting in default config file '.WiX\settings.json'.
+    Set-WixLocalConfig -ProductName "My Awesome PowerShell Module "
+    Sets the 'ProductName' setting in default config file '.WiX\settings.json'.
    .Parameter File
     An alternative configuration file.
    .Parameter Replace
     Replace all existing configuration with new settings.
-   .Parameter UpgradeCode
-    Set "UpgradeCode" value.
+   .Parameter ProductShortName
+    Set "ProductShortName" value.
+   .Parameter ProductName
+    Set "ProductName" value.
+   .Parameter ProductVersion
+    Set "ProductVersion" value.
+   .Parameter Manufacturer
+    Set "Manufacturer" value.
+   .Parameter HelpLink
+    Set "HelpLink" value.
+   .Parameter AboutLink
+    Set "AboutLink" value.
+   .Parameter UpgradeCodeX86
+    Set "UpgradeCodeX86" value.
+   .Parameter UpgradeCodeX64
+    Set "UpgradeCodeX64" value.
    .Inputs
     `System.Management.Automation.PSCustomObject`
     
@@ -191,7 +240,8 @@ Function Set-WixLocalConfig
     [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $Manufacturer,
     [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $HelpLink,
     [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $AboutLink,
-    [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $UpgradeCode
+    [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $UpgradeCodeX86,
+    [Parameter(Mandatory=$false, ParameterSetName="Strings")][string] $UpgradeCodeX64
   ) #end Param
   If ($Settings){
     $newSettings = New-Object -TypeName PSCustomObject
@@ -237,14 +287,56 @@ Function Start-WixBuild
 {
   <#
    .Synopsis
-    Converts a PowerShell module folder to an installable MSI file.
+    Converts a PowerShell module folder to installable MSI package files.
    .Description
     This function uses the WiX Toolset to convert a directory containing a
-    PowerShell module to an installable MSI file.
+    PowerShell module to an installable Microsoft Installer package file (MSI).
+    By default 32bit and 64bit MSI files are generated.  The target install
+    directories for the MSI files
+    are set to:
+    
+     - `C:\Windows\System32\WindowsPowerShell\v1.0\Modules` (64bit MSI on 64bit
+     Windows and 32bit MSI on 32bit Windows).
+     - `C:\Windows\SysWOW64\WindowsPowerShell\v1.0\Modules` (32bit MSI on 64bit
+     Windows).
+   
+    See the each function parameter for options.
+   
    .Example
-
-   .Parameter X
-
+    Start-WixBuild
+    Convert the current directory, containing a PowerShell module, into
+    installable MSI package files.
+   .Example
+    Start-WixBuild -Path 'C:\users\myuser\mymodules\awesomemodule'
+    Convert a PowerShell module in 'C:\users\myuser\mymodules\awesomemodule'
+    into installable MSI package files.
+   .Parameter Path
+    The path to the folder containing the PowerShell module to be converted.
+    Defaults to current directory.
+   .Parameter OutputFolder
+    The path to the folder to out the MSI package files.  Defaults to current
+    directory.
+   .Parameter LicenceFile
+    The path to a rich text file (.rtf) containing your module's license
+    information.  The licence will be inlcuded in the generated MSI package
+    files. Defaults to 'license.rtf' in the current directory.
+   .Parameter IconFile
+    The path to an icon file (.ico).  The icon will be displayed in
+    'Add/Remove Programs' for your package.  Defaults to 'icon.ico' in the
+    current directory.  If this can't be found an included PowerShell icon is
+    used.
+   .Parameter BannerFile
+    The path to a bitmap file (.bmp). The image will be displayed at the top of
+    every installer dialogue for your package (except the first dialog).
+    Defaults to 'banner.bmp' in the current directory. If this can't be found an
+    included PowerShell banner is used.
+   .Parameter DialogFile
+    The path to a bitmap file (.bmp). The image will be displayed at the top of
+    the first installer dialogue for your package. Defaults to 'dialog.bmp' in
+    the current directory. If this can't be found an included PowerShell dialog
+    image is used.
+   .Parameter ShortName
+    The short name of your package.  Defaults to current folder name/
    .Inputs
     None
    .Outputs
@@ -260,17 +352,23 @@ Function Start-WixBuild
   Param(
     [Parameter(Mandatory=$false)]  [string] $Path = (Get-Location).Path,
     [Parameter(Mandatory=$false)]  [string] $OutputFolder = (Get-Location).Path,
-    [Parameter(Mandatory=$false)]  [string] $LicenseFile = "$Path\License.rft",
-    [Parameter(Mandatory=$false)]  [string] $ProductShortName = (Get-WiXLocalConfig -ProductShortName).ProductShortName,
-    [Parameter(Mandatory=$false)]  [string] $ProductName = (Get-WiXLocalConfig -ProductName).ProductName,
-    [Parameter(Mandatory=$false)]  [string] $ProductVersion = (Get-WiXLocalConfig -ProductVersion).ProductVersion,
-    [Parameter(Mandatory=$false)]  [string] $Manufacturer = (Get-WiXLocalConfig -Manufacturer).Manufacturer,
-    [Parameter(Mandatory=$false)]  [string] $HelpLink = (Get-WiXLocalConfig -HelpLink).HelpLink,
-    [Parameter(Mandatory=$false)]  [string] $AboutLink = (Get-WiXLocalConfig -AboutLink).AboutLink,
-    [Parameter(Mandatory=$false)]  [string] $UpgradeCode = (Get-WiXLocalConfig -UpgradeCode).UpgradeCode,
+    [Parameter(Mandatory=$false)]  [string] $LicenseFile = "$Path\license.rtf",
+    [Parameter(Mandatory=$false)]  [string] $IconFile = "$Path\icon.ico",
+    [Parameter(Mandatory=$false)]  [string] $BannerFile = "$Path\banner.bmp",
+    [Parameter(Mandatory=$false)]  [string] $DialogFile = "$Path\dialog.bmp",
+    [Parameter(Mandatory=$false)]  [string] $ProductShortName = (Get-WiXLocalConfig -ProductShortName -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).ProductShortName,
+    [Parameter(Mandatory=$false)]  [string] $ProductName = (Get-WiXLocalConfig -ProductName -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).ProductName,
+    [Parameter(Mandatory=$false)]  [string] $ProductVersion = (Get-WiXLocalConfig -ProductVersion -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).ProductVersion,
+    [Parameter(Mandatory=$false)]  [string] $Manufacturer = (Get-WiXLocalConfig -Manufacturer -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).Manufacturer,
+    [Parameter(Mandatory=$false)]  [string] $HelpLink = (Get-WiXLocalConfig -HelpLink -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).HelpLink,
+    [Parameter(Mandatory=$false)]  [string] $AboutLink = (Get-WiXLocalConfig -AboutLink -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).AboutLink,
+    [Parameter(Mandatory=$false)]  [string] $UpgradeCodeX86 = (Get-WiXLocalConfig -UpgradeCodeX86 -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).UpgradeCodeX86,
+    [Parameter(Mandatory=$false)]  [string] $UpgradeCodeX64 = (Get-WiXLocalConfig -UpgradeCodeX64 -File ((Resolve-Path (Join-Path $Path ".wix\settings.json")).path) ).UpgradeCodeX64,
     [Parameter(Mandatory=$false)]  [int]    $Increment = 3,
-    [Parameter(Mandatory=$false)]  [switch] $x86
+    [Parameter(Mandatory=$false)]  [switch] $NoX86,
+    [Parameter(Mandatory=$false)]  [switch] $NoX64
   )
+  #(Resolve-Path (Join-Path $Path ".wix\settings.json")).path
     # Increment version number if requested
   If ($Increment -gt 0) {
     $versionArray = $ProductVersion.split(".")
@@ -296,12 +394,12 @@ Function Start-WixBuild
   
   # WiX paths
   #$libDir = Join-Path $PSScriptRoot "lib"
-  If ((((Get-ChildItem -Path 'C:\Program Files*\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName){
+  If ((Get-ChildItem -Path 'C:\Program Files*\WiX*\' -Filter heat.exe -Recurse)){
     $wixDir = Split-Path ((((Get-ChildItem -Path 'C:\Program Files (x86)\WiX*\' -Filter heat.exe -Recurse) | Select-Object FullName)[0]).FullName)
   }
   Else {
-    Out-Host "Please install WiX Toolset"
-    exit 1
+    Throw "Please install WiX Toolset"
+    Return
   }
   
   #$wixDir = Join-Path $libdir "wix"
@@ -309,52 +407,134 @@ Function Start-WixBuild
   $candleExe = Join-Path $wixDir "candle.exe"
   $lightExe = Join-Path $wixDir "light.exe"
   
+  
   # Other paths
   $thisModuleName = ConvertTo-WixNeutralString($MyInvocation.MyCommand.ModuleName)
   $tmpDirGlobalRoot = Join-Path $Env:TMP $thisModuleName
   $tmpDirThisRoot = Join-Path $tmpDirGlobalRoot $productId
   $tmpDir = Join-Path $tmpDirThisRoot $timeStamp
-  $modulesWxs = Join-Path $tmpDir "_modules.wxs"
-  $productWxs = Join-Path $tmpDir ".wxs"
-  $modulesWixobj = Join-Path $tmpDir "_modules.wixobj"
-  $productWixobj = Join-Path $tmpDir ".wixobj"
+
   $varName = "var." + $productId
-  $outputMsi = Join-Path $OutputFolder ($productID + $ProductVersion + ".msi")
   $oldMsi = Join-Path $OutputFolder ($productID + '*' + ".msi")
-  $productPdb = Join-Path $tmpDir ($productID + ".wizpdb")
   $cabFileName = $productId + ".msi"
+  
+  $moduleIconFile = Join-Path $PSScriptRoot "icon.ico"
+  $moduleBannerFile = Join-Path $PSScriptRoot "banner.bmp"
+  $moduleDialogFile = Join-Path $PSScriptRoot "dialog.bmp"
+  
+  $tmpIconFile = Join-Path $tmpDir "icon.ico"
+  $tmpBannerFile = Join-Path $tmpDir "banner.bmp"
+  $tmpDialogFile = Join-Path $tmpDir "dialog.bmp"
   
   # MSI IDs
   $productId = ConvertTo-WixNeutralString($ProductShortName)
   
-  #Platform
-  If ($x86) {
-    $platform = "x86"
-    $sysFolder = "SystemFolder"
+    
+  # Create tmp folder
+  if (test-path $tmpDir) {
+    Remove-Item $tmpDir -Recurse
   }
-  else {
-    $platform = "x64"
-    $sysFolder = "System64Folder"
-  }
-
+  New-Item $tmpDir -ItemType directory | Out-Null
+  
   # Add license
   if (test-path $LicenseFile) {
     $licenseCmd = @"
-<WixVariable Id="WixUILicenseRtf" Value="License.rtf"></WixVariable>
+<WixVariable Id="WixUILicenseRtf" Value="$LicenseFile"></WixVariable>
+"@
+
+  # Add icon
+  if (test-path $IconFile) {
+     Copy-Item $IconFile $tmpIconFile
+  }
+  elseif (test-path $moduleIconFile){
+    Copy-Item $moduleIconFile $tmpIconFile
+  }
+  if (test-path $tmpIconFile) {
+    $iconCmd = @"
+<Icon Id="icon.ico" SourceFile="$tmpIconFile"/>
+<Property Id="ARPPRODUCTICON" Value="icon.ico" />
 "@
   }
-  $wixXml = [xml] @"
+
+  # Add banner graphic
+  if (test-path $BannerFile) {
+     Copy-Item $BannerFile $tmpBannerFile
+  }
+  elseif (test-path $moduleBannerFile){
+    Copy-Item $moduleBannerFile $tmpBannerFile
+  }
+  if (test-path $tmpBannerFile) {
+    $bannerCmd = @"
+<WixVariable Id="WixUIBannerBmp" Value="$tmpBannerFile"></WixVariable>
+"@
+  }
+
+  # Add dialog graphic
+  if (test-path $DialogFile) {
+     Copy-Item $DialogFile $tmpDialogFile
+  }
+  elseif (test-path $moduleDialogFile){
+    Copy-Item $moduleDialogFile $tmpDialogFile
+  }
+  if (test-path $tmpDialogFile) {
+    $dialogCmd = @"
+<WixVariable Id="WixUIDialogBmp" Value="$tmpDialogFile"></WixVariable>
+"@
+  }
+
+  }
+  
+  # Platform settings
+  $platforms = @()
+  
+  $x86Settings = @{ 'arch' = 'x86';
+                    'sysFolder' = 'SystemFolder';
+                    'upgradeCode' = $UpgradeCodeX86;
+                    'productName' = "${ProductName} (x86)";
+                    'outputMsi' = (Join-Path $OutputFolder ($productID + "_" + $ProductVersion + "_x86.msi"))}
+  $x64Settings = @{ 'arch' = 'x64';
+                    'sysFolder' = 'System64Folder';
+                    'upgradeCode' = $UpgradeCodeX64;
+                    'productName' = "${ProductName} (x64)";
+                    'outputMsi' = (Join-Path $OutputFolder ($productID + "_" + $ProductVersion + "_x64.msi"))                    }
+  
+  If (!$Nox86) {
+    $platforms += $x86Settings
+  }
+  If (!$Nox64) {
+    $platforms += $x64Settings
+  }
+
+  # Remove existing MSIs
+  Remove-Item $oldMsi
+  
+  # Do the build
+  foreach ($platform in $platforms) {
+    $platformArch = $platform.arch
+    $platformUpgradeCode = $platform.upgradeCode
+    $platformSysFolder = $platform.sysFolder
+    $platformProductName = $platform.productName
+    $platformOutputMsi = $platform.outputMsi
+    
+    $modulesWxs = Join-Path $tmpDir "_modules${platformArch}.wxs"
+    $productWxs = Join-Path $tmpDir ".wxs${platformArch}"
+    $modulesWixobj = Join-Path $tmpDir "_modules${platformArch}.wixobj"
+    $productWixobj = Join-Path $tmpDir ".wixobj${platformArch}"
+    $productPdb = Join-Path $tmpDir ($productID + ".wizpdb${platformArch}")
+
+    # Build XML
+    $wixXml = [xml] @"
 <?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'> 
-  <Product Id="*" Language="1033" Name="$ProductName" Version="$ProductVersion"
-           Manufacturer="$Manufacturer" UpgradeCode="$UpgradeCode" >
+  <Product Id="*" Language="1033" Name="$platformProductName" Version="$ProductVersion"
+           Manufacturer="$Manufacturer" UpgradeCode="$platformUpgradeCode" >
     
-    <Package Id="*" Description="$ProductName Installer" 
+    <Package Id="*" Description="$platformProductName Installer" 
              InstallPrivileges="elevated" Comments="$ProductShortName Installer" 
-             InstallerVersion="200" Compressed="yes" Platform="$platform">
+             InstallerVersion="200" Compressed="yes" Platform="$platformArch">
     </Package>
-    
-    <Upgrade Id="$UpgradeCode">
+    $iconCmd
+    <Upgrade Id="$platformUpgradeCode">
       <!-- Detect any newer version of this product -->
       <UpgradeVersion Minimum="$ProductVersion" IncludeMinimum="no" OnlyDetect="yes"
                       Language="1033" Property="NEWPRODUCTFOUND" />
@@ -384,9 +564,11 @@ Function Start-WixBuild
     </InstallUISequence>
     
     <Media Id="1" Cabinet="$cabFileName" EmbedCab="yes"></Media>
-    $licenseCmd 
+    $licenseCmd
+    $bannerCmd
+    $dialogCmd
     <Directory Id="TARGETDIR" Name="SourceDir">
-      <Directory Id="$sysFolder" Name="$sysFolder">
+      <Directory Id="$platformSysFolder" Name="$platformSysFolder">
         <Directory Id="WindowsPowerShell" Name="WindowsPowerShell">
           <Directory Id="v10" Name="v1.0">
             <Directory Id="INSTALLDIR" Name="Modules">
@@ -410,28 +592,19 @@ Function Start-WixBuild
   </Product>
 </Wix>
 "@
-  
-  # Create tmp folder
-  if (test-path $tmpDir) {
-    Remove-Item $tmpDir -Recurse
+
+    # Save XML and create productWxs
+    $wixXml.Save($modulesWxs)
+    &$heatExe dir $Path -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId | Out-Null
+    
+    # Produce wixobj files
+    &$candleexe $modulesWxs -out $modulesWixobj | Out-Null
+    &$candleexe $productWxs -out $productWixobj | Out-Null
+    
+    # Produce the MSI file
+    &$lightexe -sw1076 -spdb -ext WixUIExtension -out $platformOutputMsi $modulesWixobj $productWixobj -b $Path -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 | Out-Null
+    
   }
-  New-Item $tmpDir -ItemType directory | Out-Null
-  
-  # Remove existing MSIs
-  Remove-Item $oldMsi
-  
-  # Save XML and create productWxs
-  $wixXml.Save($modulesWxs)
-  &$heatExe dir $Path -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId | Out-Null
-  
-  # Produce wixobj files
-  &$candleexe $modulesWxs -out $modulesWixobj | Out-Null
-  &$candleexe $productWxs -out $productWixobj | Out-Null
-  
-  # Produce the MSI file
-  &$lightexe -sw1076 -spdb -ext WixUIExtension -out $outputMsi $modulesWixobj $productWixobj -b $Path -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 | Out-Null
-  
   # Remove tmp dir
   Remove-Item $tmpDir -Recurse
-  
 } #end Start-WixBuild
