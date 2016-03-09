@@ -134,7 +134,7 @@ Function Get-WixLocalConfig
     }
     #$readsettings
     $null = (New-Item -ItemType Directory -Force -Path (Split-Path $file))
-    $readSettings | ConvertTo-JSON | Out-File $file
+    $readSettings | ConvertTo-JSON | Out-File -Encoding utf8 $file
   }
 
   if (Test-Path $file){
@@ -265,7 +265,7 @@ Function Set-WixLocalConfig
 
     }
     $null = (New-Item -ItemType Directory -Force -Path (Split-Path $file))
-    $newSettings | ConvertTo-JSON | Out-File $file
+    $newSettings | ConvertTo-JSON | Out-File -Encoding utf8 $file
     Get-WixLocalConfig -Path $Path
   }
   else {
