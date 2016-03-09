@@ -15,8 +15,8 @@ repo, then:
 
 ````powershell
 Import-Module powershell-msi
-cd My_Awesome_Module_dir
-Set-WixLocalConfig -ProductName "My Aweseom PowerShell Module" -Manfacturer "John Smith"
+cd My_Awesome_Module
+Set-WixLocalConfig -ProductName "My Awesome PowerShell Module" -Manfacturer "John Smith"
 Start-WixBuild
 ````
 
