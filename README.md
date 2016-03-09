@@ -36,7 +36,7 @@ via `Import-Module`.
 Use Get-Help, e.g.:
 
 ````powershell
-Get-Help
+Get-Help Start-WixBuild -Online
 ````
 
 ## License, copyright and acknowledgements
