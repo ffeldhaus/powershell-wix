@@ -30,8 +30,6 @@ via `Import-Module`.
 - [Get-WixLocalConfig](https://github.com/liger1978/powershell-wix/tree/master/docs/get-wixlocalconfig.md)
 - [Set-WixLocalConfig](https://github.com/liger1978/powershell-wix/tree/master/docs/set-wixlocalconfig.md)
 
-## Requirements
-
 ## Getting help
 Use Get-Help, e.g.:
 
