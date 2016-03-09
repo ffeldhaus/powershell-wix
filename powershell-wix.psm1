@@ -1,5 +1,24 @@
 #Requires -Version 3.0
-function Get-WixAbsolutePath ($Path){
+Function Copy-WixSourceFiles {
+  [Cmdletbinding()]
+  Param(
+    [Parameter(Mandatory=$true,Position = 0)]  [string] $Source,
+    [Parameter(Mandatory=$true,Position = 1)]  [string] $Destination,
+    [Parameter(Mandatory=$false)]  [string[]] $Exclude
+   )
+   New-Item $Destination -ItemType directory -Force | Out-Null
+   $objects = Get-ChildItem $Source -Force -Exclude $exclude
+   foreach ($object in $objects) {
+     if ($object.Attributes -contains 'Directory') {
+       Copy-WixSourceFiles $object.Fullname (Join-path $Destination $object.Name) -Exclude $Exclude
+     }
+     else {
+       Copy-Item $object.FullName $Destination
+     }
+   }
+ }
+
+Function Get-WixAbsolutePath ($Path){
   $Path = [System.IO.Path]::Combine( ((pwd).Path), ($Path) );
   $Path = [System.IO.Path]::GetFullPath($Path);
   return $Path;
@@ -316,6 +335,9 @@ Function Start-WixBuild
    .Parameter Path
     The path to the folder containing the PowerShell module to be converted.
     Defaults to current directory.
+   .Parameter Exclude
+    An array of file and folder patterns to exclude fomr the generated MSI
+    package files.  Defaults to `@('.git','.gitignore','*.msi')`
    .Parameter OutputFolder
     The path to the folder to out the MSI package files.  Defaults to current
     directory.
@@ -354,6 +376,7 @@ Function Start-WixBuild
   [Cmdletbinding()]
   Param(
     [Parameter(Mandatory=$false,Position=0)]  [string] $Path = (Get-Location).Path,
+    [Parameter(Mandatory=$false)]  [string[]] $Exclude = @('.git','.gitignore','*.msi'),
     [Parameter(Mandatory=$false)]  [string] $OutputFolder = (Get-Location).Path,
     [Parameter(Mandatory=$false)]  [string] $LicenseFile = "$Path\license.rtf",
     [Parameter(Mandatory=$false)]  [string] $IconFile = "$Path\icon.ico",
@@ -413,7 +436,8 @@ Function Start-WixBuild
   $tmpDirGlobalRoot = Join-Path $Env:TMP $thisModuleName
   $tmpDirThisRoot = Join-Path $tmpDirGlobalRoot $productId
   $tmpDir = Join-Path $tmpDirThisRoot $timeStamp
-
+  
+  
   $varName = "var." + $productId
   $oldMsi = Join-Path $OutputFolder ($productID + '*' + ".msi")
   $cabFileName = $productId + ".msi"
@@ -425,7 +449,7 @@ Function Start-WixBuild
   $tmpIconFile = Join-Path $tmpDir "icon.ico"
   $tmpBannerFile = Join-Path $tmpDir "banner.bmp"
   $tmpDialogFile = Join-Path $tmpDir "dialog.bmp"
-
+  
   # MSI IDs
   $productId = ConvertTo-WixNeutralString($ProductShortName)
 
@@ -434,6 +458,10 @@ Function Start-WixBuild
     Remove-Item $tmpDir -Recurse
   }
   New-Item $tmpDir -ItemType directory | Out-Null
+  
+  # Copy Files to tmp dir
+  $tmpSourceDir = Join-Path $tmpDir "files"
+  Copy-WixSourceFiles $Path $tmpSourceDir -Exclude $Exclude
 
   # Add license
   if (test-path $LicenseFile) {
@@ -501,7 +529,7 @@ Function Start-WixBuild
   }
 
   # Remove existing MSIs
-  Remove-Item $oldMsi
+  # Remove-Item $oldMsi
 
   # Do the build
   foreach ($platform in $platforms) {
@@ -509,7 +537,7 @@ Function Start-WixBuild
     $platformUpgradeCode = $platform.upgradeCode
     $platformSysFolder = $platform.sysFolder
     $platformProductName = $platform.productName
-    $platformOutputMsi = $platform.outputMsi
+
 
     $modulesWxs = Join-Path $tmpDir "_modules${platformArch}.wxs"
     $productWxs = Join-Path $tmpDir ".wxs${platformArch}"
@@ -590,16 +618,22 @@ Function Start-WixBuild
 
     # Save XML and create productWxs
     $wixXml.Save($modulesWxs)
-    &$heatExe dir $Path -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId | Out-Null
+    &$heatExe dir $tmpSourceDir -nologo -sfrag -sw5151 -suid -ag -srd -dir $productId -out $productWxs -cg $productId -dr $productId | Out-Null
 
     # Produce wixobj files
     &$candleexe $modulesWxs -out $modulesWixobj | Out-Null
     &$candleexe $productWxs -out $productWixobj | Out-Null
-
+  }
+  foreach ($platform in $platforms) {
+    $platformArch = $platform.arch
+    $modulesWixobj = Join-Path $tmpDir "_modules${platformArch}.wixobj"
+    $productWixobj = Join-Path $tmpDir ".wixobj${platformArch}"
+    $platformOutputMsi = $platform.outputMsi
+  
     # Produce the MSI file
-    &$lightexe -sw1076 -spdb -ext WixUIExtension -out $platformOutputMsi $modulesWixobj $productWixobj -b $Path -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 | Out-Null
+    &$lightexe -sw1076 -spdb -ext WixUIExtension -out $platformOutputMsi $modulesWixobj $productWixobj -b $tmpSourceDir -sice:ICE91 -sice:ICE69 -sice:ICE38 -sice:ICE57 -sice:ICE64 -sice:ICE204 -sice:ICE80 | Out-Null
 
   }
   # Remove tmp dir
-  Remove-Item $tmpDir -Recurse
+  #Remove-Item $tmpDir -Recurse
 } #end Start-WixBuild

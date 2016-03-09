@@ -4,7 +4,7 @@ Converts a PowerShell module folder to installable MSI package files.
 
 ## SYNTAX
 ```powershell
-Start-WixBuild [[-Path] <String>] [-OutputFolder <String>] [-LicenseFile <String>] [-IconFile <String>] [-BannerFile <String>] [-DialogFile <String>] [-ProductShortName <String>] [-ProductName <String>] [-ProductVersion <String>] [-Manufacturer <String>] [-HelpLink <String>] [-AboutLink <String>] [-UpgradeCodeX86 <String>] [-UpgradeCodeX64 <String>] [-Increment <Int32>] [-NoX86] [-NoX64] [<CommonParameters>]
+Start-WixBuild [[-Path] <String>] [-Exclude <String[]>] [-OutputFolder <String>] [-LicenseFile <String>] [-IconFile <String>] [-BannerFile <String>] [-DialogFile <String>] [-ProductShortName <String>] [-ProductName <String>] [-ProductVersion <String>] [-Manufacturer <String>] [-HelpLink <String>] [-AboutLink <String>] [-UpgradeCodeX86 <String>] [-UpgradeCodeX64 <String>] [-Increment <Int32>] [-NoX86] [-NoX64] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -29,6 +29,17 @@ Defaults to current directory.
 Required?                    false
 Position?                    1
 Default value                (Get-Location).Path
+Accept pipeline input?       false
+Accept wildcard characters?  false
+```
+ 
+### -Exclude \<String[]\>
+An array of file and folder patterns to exclude fomr the generated MSI
+package files.  Defaults to `@('.git','.gitignore','\*.msi')`
+```
+Required?                    false
+Position?                    named
+Default value                @('.git','.gitignore','*.msi')
 Accept pipeline input?       false
 Accept wildcard characters?  false
 ```
