@@ -1,4 +1,4 @@
-$commands = Get-Command *Pulp*
+$commands = Get-Command *Wix*
 ForEach ($command in $commands){
   $strCommand = [String]$command
   $file = $PSScriptRoot + "\" + $strCommand.ToLower() + ".md"
