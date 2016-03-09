@@ -88,7 +88,7 @@ Function Get-WixLocalConfig
 
     AUTHOR: Richard Grainger <grainger@gmail.com>
    .Link
-    https://github.com/liger1978/powershell-wix/tree/master/docsget-wixlocalconfig.md
+    https://github.com/liger1978/powershell-wix/tree/master/docs/get-wixlocalconfig.md
  #>
   [Cmdletbinding()]
   Param(
@@ -349,7 +349,7 @@ Function Start-WixBuild
 
     AUTHOR: Richard Grainger <grainger@gmail.com>
    .Link
-    https://github.com/liger1978/powershell-wix/tree/master/docsstart-wixbuild.md
+    https://github.com/liger1978/powershell-wix/tree/master/docs/start-wixbuild.md
  #>
   [Cmdletbinding()]
   Param(
