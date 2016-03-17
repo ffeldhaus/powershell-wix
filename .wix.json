@@ -2,9 +2,9 @@
     "ProductShortName":  "powershell-wix",
     "UpgradeCodeX86":  "656F16A6-1E96-210D-3EC4-606FCE5F60C1",
     "UpgradeCodeX64":  "37E5EDE9-748C-1485-0FB2-7FDB9F2769BF",
-    "ProductName":  "WiX module for Windows PowerShell",
     "Manufacturer":  "grainger@gmail.com",
     "AboutLink":  "https://github.com/liger1978/powershell-wix",
     "HelpLink":  "https://github.com/liger1978/powershell-wix",
-    "ProductVersion":  "1.0.1"
+    "ProductName":  "Windows PowerShell module for WiX",
+    "ProductVersion":  "1.0.2"
 }
