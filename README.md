@@ -38,7 +38,7 @@ Get-Help Start-WixBuild -Online
 ````
 
 ## License, copyright and acknowledgements
-**powershell-msi**: Copyright (c) 2016 Richard Grainger,
+**powershell-wix**: Copyright (c) 2016 Richard Grainger,
 [MIT License] (https://opensource.org/licenses/MIT)
 
 **WiX Toolset**: Copyright (c) 2016 Outercurve Foundation,
