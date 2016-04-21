@@ -14,7 +14,7 @@ Install the module from
 repo, then:
 
 ````powershell
-Import-Module powershell-msi
+Import-Module powershell-wix
 cd My_Awesome_Module
 Set-WixLocalConfig -ProductName "My Awesome PowerShell Module" -Manufacturer "John Smith"
 Start-WixBuild
